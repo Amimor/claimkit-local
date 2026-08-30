@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claimkit-local"
+version = "0.1.0"
+description = "Local, review-first warranty evidence packaging for household appliances"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Alexander"}]
+dependencies = [
+  "numpy>=2.0,<3",
+  "pillow>=11,<13",
+  "pydantic>=2.10,<3",
+  "reportlab>=4.2,<5",
+]
+
+[project.optional-dependencies]
+ocr = ["paddleocr>=3.3,<4", "paddlepaddle>=3.2,<4"]
+vlm = ["transformers>=4.50,<6", "torch>=2.6,<3", "einops>=0.8,<1", "timm>=1.0,<2"]
+app = ["streamlit>=1.45,<2"]
+dev = ["pytest>=8.3,<10", "ruff>=0.11,<1", "mypy>=1.15,<2"]
+all = [
+  "paddleocr>=3.3,<4", "paddlepaddle>=3.2,<4",
+  "transformers>=4.50,<6", "torch>=2.6,<3", "einops>=0.8,<1", "timm>=1.0,<2",
+  "streamlit>=1.45,<2",
+]
+
+[project.scripts]
+claimkit = "claimkit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["claimkit"]
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
