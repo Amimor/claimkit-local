@@ -1,0 +1,11 @@
+{
+  "fixture": "synthetic-en-ru-v1",
+  "evidence_files": 5,
+  "expected_field_values": 8,
+  "matched_field_values": 8,
+  "normalized_field_recall": 1.0,
+  "seeded_conflicts": 1,
+  "detected_seeded_conflicts": 1,
+  "conflict_recall": 1.0,
+  "network_required": false
+}
