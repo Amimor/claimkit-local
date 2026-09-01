@@ -100,7 +100,7 @@ the deterministic pipeline; they are not presented as real-document OCR accuracy
 uv sync --extra dev --extra app
 uv run pytest -m "not integration"
 uv run ruff check .
-uv run mypy src/claimkit
+uv run mypy --package claimkit
 ```
 
 ## Privacy and threat model
