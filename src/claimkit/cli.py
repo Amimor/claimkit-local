@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .damage import FlorenceDamageBackend
 from .demo import generate_demo
 from .evaluate import evaluate_demo
 from .export import export_package
@@ -21,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--output", type=Path, required=True)
     build.add_argument("--lang", choices=["en", "ru"], default="en")
     build.add_argument("--description", default="")
+    build.add_argument("--florence", action="store_true", help="Add unconfirmed Florence-2 suggestions")
     demo = commands.add_parser("demo", help="Generate and process synthetic evidence")
     demo.add_argument("--output", type=Path, default=Path("demo/generated"))
     evaluate = commands.add_parser("evaluate", help="Evaluate the deterministic synthetic fixture")
@@ -53,7 +55,13 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(inspection_payload, ensure_ascii=False, indent=2))
         return 0
-    package, evidence = create_claim_package(args.folder, args.lang, args.description)
+    damage_backend = FlorenceDamageBackend() if args.florence else None
+    package, evidence = create_claim_package(
+        args.folder,
+        args.lang,
+        args.description,
+        damage_backend=damage_backend,
+    )
     zip_path = export_package(args.output, package, evidence, args.lang)
     print(zip_path)
     return 0

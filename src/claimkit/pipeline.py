@@ -108,6 +108,7 @@ def create_claim_package(
         ),
         extracted_fields=fields,
         conflicts=find_conflicts(fields),
+        damage_suggestions=suggestions,
         confirmed_damage=confirmed,
         missing_evidence=missing,
         problem_description=description,

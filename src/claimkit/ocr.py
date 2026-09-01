@@ -44,7 +44,14 @@ class PaddleOCRBackend:
             from paddleocr import PaddleOCR
         except ImportError as exc:  # pragma: no cover - optional integration
             raise RuntimeError("Install claimkit-local[ocr] to process real images") from exc
-        self._engine = PaddleOCR(lang=language, use_doc_orientation_classify=True)
+        self._engine = PaddleOCR(
+            lang=language,
+            device="cpu",
+            enable_mkldnn=False,
+            use_doc_orientation_classify=True,
+            use_doc_unwarping=False,
+            use_textline_orientation=True,
+        )
 
     def read(self, path: Path, language: str = "en") -> list[OCRToken]:
         results = self._engine.predict(str(path))
@@ -72,8 +79,15 @@ class PaddleOCRBackend:
 class AutoOCRBackend:
     """Use explicit sidecars when present, otherwise try local PaddleOCR."""
 
+    def __init__(self) -> None:
+        self._paddle_backends: dict[str, PaddleOCRBackend] = {}
+
     def read(self, path: Path, language: str = "en") -> list[OCRToken]:
         sidecar = SidecarOCRBackend().read(path, language)
         if sidecar:
             return sidecar
-        return PaddleOCRBackend(language).read(path, language)
+        backend = self._paddle_backends.get(language)
+        if backend is None:
+            backend = PaddleOCRBackend(language)
+            self._paddle_backends[language] = backend
+        return backend.read(path, language)

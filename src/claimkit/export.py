@@ -5,8 +5,11 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from PIL import Image
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
 from .models import ClaimPackage, EvidenceFile
@@ -38,8 +41,25 @@ def _letter(package: ClaimPackage, language: str) -> str:
     )
 
 
+def _pdf_fonts() -> tuple[str, str]:
+    candidates = [
+        (Path("C:/Windows/Fonts/arial.ttf"), Path("C:/Windows/Fonts/arialbd.ttf")),
+        (
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ),
+    ]
+    for regular_path, bold_path in candidates:
+        if regular_path.is_file() and bold_path.is_file():
+            pdfmetrics.registerFont(TTFont("ClaimKitSans", str(regular_path)))
+            pdfmetrics.registerFont(TTFont("ClaimKitSans-Bold", str(bold_path)))
+            return "ClaimKitSans", "ClaimKitSans-Bold"
+    return "Helvetica", "Helvetica-Bold"
+
+
 def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) -> None:
     canvas = Canvas(str(path), pagesize=A4)
+    regular_font, bold_font = _pdf_fonts()
     width, height = A4
     canvas.setTitle("ClaimKit evidence summary")
     navy = colors.HexColor("#17212B")
@@ -57,21 +77,21 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
     canvas.setFillColor(navy)
     canvas.rect(0, height - 94, width, 94, fill=1, stroke=0)
     canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 22)
+    canvas.setFont(bold_font, 22)
     canvas.drawString(margin, height - 45, "ClaimKit evidence summary")
-    canvas.setFont("Helvetica", 10)
+    canvas.setFont(regular_font, 10)
     canvas.drawString(margin, height - 67, "Local, review-first warranty evidence package")
     canvas.setFillColor(blue)
     canvas.roundRect(width - 142, height - 66, 100, 28, 6, fill=1, stroke=0)
     canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 9)
+    canvas.setFont(bold_font, 9)
     canvas.drawCentredString(width - 92, height - 56, "REVIEW REQUIRED")
 
     y = height - 116
     canvas.setFillColor(warning)
     canvas.roundRect(margin, y - 35, content_width, 35, 6, fill=1, stroke=0)
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica", 9)
+    canvas.setFont(regular_font, 9)
     canvas.drawString(
         margin + 12,
         y - 21,
@@ -80,7 +100,7 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
 
     y -= 57
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica-Bold", 13)
+    canvas.setFont(bold_font, 13)
     canvas.drawString(margin, y, "Appliance")
     y -= 16
     canvas.setFillColor(light_blue)
@@ -94,25 +114,25 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
     for index, (label, value) in enumerate(product_rows):
         x = margin + index * column_width + 12
         canvas.setFillColor(muted)
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont(regular_font, 8)
         canvas.drawString(x, y - 22, label.upper())
         canvas.setFillColor(text)
-        canvas.setFont("Helvetica-Bold", 11)
+        canvas.setFont(bold_font, 11)
         canvas.drawString(x, y - 45, value[:24])
 
     y -= 100
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica-Bold", 13)
+    canvas.setFont(bold_font, 13)
     canvas.drawString(margin, y, "Evidence inventory")
     canvas.setFillColor(muted)
-    canvas.setFont("Helvetica", 8)
+    canvas.setFont(regular_font, 8)
     canvas.drawRightString(width - margin, y, f"{len(evidence)} local files")
     y -= 18
     table_header = y
     canvas.setFillColor(navy)
     canvas.rect(margin, table_header - 22, content_width, 22, fill=1, stroke=0)
     canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 8)
+    canvas.setFont(bold_font, 8)
     canvas.drawString(margin + 10, table_header - 15, "FILE")
     canvas.drawString(margin + 270, table_header - 15, "TYPE")
     canvas.drawString(margin + 405, table_header - 15, "QUALITY")
@@ -121,7 +141,7 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
         canvas.setFillColor(light_gray if index % 2 == 0 else colors.white)
         canvas.rect(margin, y - 24, content_width, 24, fill=1, stroke=0)
         canvas.setFillColor(text)
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont(regular_font, 8)
         canvas.drawString(margin + 10, y - 16, item.path.name[:30])
         canvas.drawString(margin + 270, y - 16, item.file_type.value[:20])
         quality = f"{len(item.quality_warnings)} warning(s)" if item.quality_warnings else "OK"
@@ -134,26 +154,26 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
 
     y -= 18
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica-Bold", 13)
+    canvas.setFont(bold_font, 13)
     canvas.drawString(margin, y, "Reported problem")
     y -= 14
     canvas.setFillColor(light_gray)
     canvas.roundRect(margin, y - 44, content_width, 44, 6, fill=1, stroke=0)
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica", 9)
+    canvas.setFont(regular_font, 9)
     description = package.problem_description or "Not provided"
     canvas.drawString(margin + 12, y - 26, description[:90])
 
     y -= 70
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica-Bold", 13)
+    canvas.setFont(bold_font, 13)
     canvas.drawString(margin, y, "Review findings")
     y -= 14
     findings_height = max(50, 24 + 18 * max(1, len(package.conflicts)))
     canvas.setFillColor(danger if package.conflicts else light_blue)
     canvas.roundRect(margin, y - findings_height, content_width, findings_height, 6, fill=1, stroke=0)
     canvas.setFillColor(text)
-    canvas.setFont("Helvetica", 9)
+    canvas.setFont(regular_font, 9)
     if package.conflicts:
         for index, conflict in enumerate(package.conflicts[:4]):
             finding = f"{conflict.field_name}: {' / '.join(conflict.competing_values)}"
@@ -164,7 +184,7 @@ def _write_pdf(path: Path, package: ClaimPackage, evidence: list[EvidenceFile]) 
     canvas.setStrokeColor(border)
     canvas.line(margin, 34, width - margin, 34)
     canvas.setFillColor(muted)
-    canvas.setFont("Helvetica", 7.5)
+    canvas.setFont(regular_font, 7.5)
     canvas.drawString(margin, 21, "Generated locally by ClaimKit Local - verify every field before sending.")
     canvas.drawRightString(width - margin, 21, "Page 1 of 1")
     canvas.save()
@@ -182,32 +202,65 @@ def export_package(
     copies = output_dir / "evidence"
     originals.mkdir(parents=True, exist_ok=True)
     copies.mkdir(parents=True, exist_ok=True)
+    original_paths: dict[str, str] = {}
     for index, item in enumerate(evidence, start=1):
-        shutil.copy2(item.path, originals / item.path.name)
+        original_name = f"{index:02d}_{item.path.name}"
+        shutil.copy2(item.path, originals / original_name)
         shutil.copy2(item.path, copies / _safe_name(index, item))
+        original_paths[item.id] = f"originals/{original_name}"
 
-    manifest_path = output_dir / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "schema_version": "1.0",
-                "package": package.model_dump(mode="json"),
-                "evidence": [item.model_dump(mode="json") for item in evidence],
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    evidence_by_id = {item.id: item for item in evidence}
+    damage_dir = output_dir / "confirmed-damage"
+    for index, suggestion in enumerate(package.confirmed_damage, start=1):
+        source_evidence = evidence_by_id.get(suggestion.image_id)
+        if source_evidence is None:
+            continue
+        damage_dir.mkdir(parents=True, exist_ok=True)
+        with Image.open(source_evidence.path) as source:
+            width, height = source.size
+            box = suggestion.bounding_box
+            crop_box = (
+                max(0, min(width - 1, box.x1)),
+                max(0, min(height - 1, box.y1)),
+                max(1, min(width, box.x2)),
+                max(1, min(height, box.y2)),
+            )
+            if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+                continue
+            source.crop(crop_box).convert("RGB").save(damage_dir / f"damage-{index:02d}.png")
+
     letter_path = output_dir / f"claim-letter-{language}.txt"
     letter_path.write_text(_letter(package, language), encoding="utf-8")
     _write_pdf(output_dir / "claim-summary.pdf", package, evidence)
     (output_dir / "missing-evidence.txt").write_text(
         "\n".join(package.missing_evidence) or "No required evidence types are missing.", encoding="utf-8"
     )
-    package.output_files = [
-        str(path.relative_to(output_dir)) for path in output_dir.rglob("*") if path.is_file()
-    ]
+    package.output_files = sorted(
+        [
+            str(path.relative_to(output_dir)).replace("\\", "/")
+            for path in output_dir.rglob("*")
+            if path.is_file()
+        ]
+        + ["manifest.json"]
+    )
+    evidence_payload = []
+    for item in evidence:
+        payload = item.model_dump(mode="json")
+        payload["path"] = original_paths[item.id]
+        evidence_payload.append(payload)
+    manifest_path = output_dir / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "package": package.model_dump(mode="json"),
+                "evidence": evidence_payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     zip_path = output_dir.with_suffix(".zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in output_dir.rglob("*"):

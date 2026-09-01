@@ -13,11 +13,8 @@ decide whether a claim is legally valid and never submits anything on your behal
 ## See it work
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -e .
-claimkit demo
+uv sync
+uv run claimkit demo
 ```
 
 The command creates synthetic English/Russian evidence, deliberately puts
@@ -40,31 +37,34 @@ A rendered sample is included at [`output/pdf/claim-summary-demo.pdf`](output/pd
 
 ## Features
 
-- English and Russian OCR through an optional local PaddleOCR adapter.
+- English and Russian OCR through an optional local [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) adapter.
 - Model-free deterministic demo via explicit OCR sidecars (no hidden network calls).
 - Classification of receipts, warranty cards, serial labels, product views and damage photos.
 - Traceable extraction of manufacturer, model, serial number, seller, purchase date,
   price and warranty duration.
 - Cross-document conflict detection without silently choosing a value.
 - Blur, exposure, resolution and exact-duplicate checks.
-- Optional local Florence-2 adapter; every suggestion remains unconfirmed.
+- Optional local [Florence-2](https://huggingface.co/microsoft/Florence-2-base) adapter;
+  every suggestion remains unconfirmed.
 - PDF/JSON/ZIP export that preserves originals and refuses to overwrite a non-empty directory.
 
 ## Local app
 
 ```bash
-python -m pip install -e ".[app,ocr]"
-streamlit run src/claimkit/app.py
+uv sync --extra app --extra ocr
+uv run streamlit run src/claimkit/app.py
 ```
 
-For the optional visual-language model, install `.[vlm]`. Model weights are downloaded
-only when that adapter is explicitly constructed.
+To enable local Florence-2 suggestions, repeat the sync with `--extra vlm`. PaddleOCR
+weights are downloaded on first OCR use; Florence-2 weights are downloaded only after
+you select its checkbox or pass `--florence`. Both run locally after that download.
 
 ## CLI
 
 ```bash
 claimkit inspect ./evidence --lang ru
 claimkit build ./evidence --output ./claim-package --description "Door seal is leaking"
+claimkit build ./evidence --output ./claim-package --florence
 claimkit demo --output ./demo/generated
 claimkit evaluate --output ./demo/evaluation.json
 ```
@@ -89,22 +89,27 @@ flowchart LR
 The generated fixture supplies normalized ground truth. Core tests verify date and
 currency normalization, the seeded model conflict, package contents, image-quality
 warnings and non-overwrite behavior. Heavy OCR/VLM tests live in a manually triggered
-workflow so ordinary CI is fast and deterministic.
+workflow so ordinary CI is fast and deterministic. The integration suite runs
+pixel-only English/Russian OCR and a real Florence-2 caption-plus-grounding pass.
 
 The committed [`demo/evaluation.json`](demo/evaluation.json) reports 8/8 normalized
 field values and 1/1 seeded conflicts on the synthetic fixture. These numbers verify
 the deterministic pipeline; they are not presented as real-document OCR accuracy.
 
 ```bash
-python -m pip install -e ".[dev]"
-pytest
-ruff check .
+uv sync --extra dev --extra app
+uv run pytest -m "not integration"
+uv run ruff check .
+uv run mypy src/claimkit
 ```
 
 ## Privacy and threat model
 
-- Processing and exports are local.
-- The core has no HTTP client and no telemetry.
+- Processing and exports are local; no document is sent to an inference API.
+- The committed Streamlit configuration binds the review UI to `127.0.0.1` only.
+- Optional third-party model libraries may download model weights on first use;
+  the Florence-2 code path pins a reviewed model revision.
+- Telemetry is disabled in the integration workflow and can remain disabled offline.
 - Original evidence is copied, never modified.
 - Generated letters contain only confirmed structured fields and user-provided text.
 - Output packages still contain personal data. Store and send them appropriately.

@@ -81,6 +81,7 @@ class ClaimPackage(BaseModel):
     appliance: Appliance
     extracted_fields: list[ExtractedField]
     conflicts: list[EvidenceConflict]
+    damage_suggestions: list[DamageSuggestion] = Field(default_factory=list)
     confirmed_damage: list[DamageSuggestion]
     missing_evidence: list[str]
     output_files: list[str] = Field(default_factory=list)

@@ -12,7 +12,9 @@ from claimkit.demo import generate_demo
 from claimkit.evaluate import evaluate_demo
 from claimkit.export import export_package
 from claimkit.extract import normalize_date, normalize_price
-from claimkit.pipeline import create_claim_package
+from claimkit.models import ReviewStatus
+from claimkit.ocr import SidecarOCRBackend
+from claimkit.pipeline import create_claim_package, inspect_folder
 from claimkit.quality import image_quality_warnings
 
 
@@ -37,6 +39,10 @@ class ClaimKitTests(unittest.TestCase):
             self.assertEqual(model_conflicts[0].competing_values, truth["expected_model_conflict"])
             self.assertEqual(package.missing_evidence, [])
 
+            self.assertTrue(package.damage_suggestions)
+            package.damage_suggestions[0].user_status = ReviewStatus.CONFIRMED
+            package.confirmed_damage = [package.damage_suggestions[0]]
+
             archive = export_package(root / "package", package, evidence, "en")
             self.assertTrue(archive.exists())
             with zipfile.ZipFile(archive) as bundle:
@@ -44,6 +50,14 @@ class ClaimKitTests(unittest.TestCase):
                 self.assertIn("manifest.json", names)
                 self.assertIn("claim-summary.pdf", names)
                 self.assertIn("claim-letter-en.txt", names)
+                self.assertIn("confirmed-damage/damage-01.png", names)
+                manifest = json.loads(bundle.read("manifest.json"))
+                manifest_text = json.dumps(manifest)
+                self.assertNotIn(str(root), manifest_text)
+                self.assertTrue(
+                    all(item["path"].startswith("originals/") for item in manifest["evidence"])
+                )
+                self.assertIn("confirmed-damage/damage-01.png", manifest["package"]["output_files"])
 
     def test_quality_and_non_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -61,6 +75,22 @@ class ClaimKitTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 export_package(output, package, evidence)
             self.assertEqual((output / "keep.txt").read_text(), "user data")
+
+    def test_exact_duplicate_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            first = folder / "first.png"
+            second = folder / "second.png"
+            Image.new("RGB", (320, 240), "gray").save(first)
+            second.write_bytes(first.read_bytes())
+            evidence, _ = inspect_folder(folder, ocr=SidecarOCRBackend())
+            duplicate_warnings = [
+                warning
+                for item in evidence
+                for warning in item.quality_warnings
+                if warning.startswith("duplicate_of:")
+            ]
+            self.assertEqual(duplicate_warnings, ["duplicate_of:first.png"])
 
     def test_evaluation_thresholds(self) -> None:
         result = evaluate_demo()
