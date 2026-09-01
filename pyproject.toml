@@ -55,7 +55,6 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP"]
 
 [tool.mypy]
-python_version = "3.11"
 strict = true
 packages = ["claimkit"]
 ignore_missing_imports = true
