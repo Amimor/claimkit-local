@@ -1,3 +1,5 @@
+[English](README.md) | [Русский](README.ru.md)
+
 # ClaimKit Local
 
 > Turn appliance photos, receipts and warranty documents into a structured,
@@ -10,10 +12,41 @@ decide whether a claim is legally valid and never submits anything on your behal
 
 ![ClaimKit demo](docs/demo.gif)
 
+## Quick start
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), clone the repository,
+and use the launcher for your operating system. The launcher provisions Python 3.12,
+creates an isolated `.venv`, installs the locked dependencies and starts the local UI at
+`http://127.0.0.1:8501`.
+
+**Windows:** double-click `run.bat`, or run:
+
+```powershell
+.\run.bat
+```
+
+**Windows PowerShell:**
+
+```powershell
+.\run.ps1
+```
+
+**macOS / Linux:**
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+The standard launcher installs the UI and PaddleOCR. To also install the substantially
+larger Florence-2 stack, use `run.bat -Full`, `.\run.ps1 -Full`, or `./run.sh --full`.
+Use `-SetupOnly` on Windows or `--setup-only` on macOS/Linux to prepare the environment
+without starting the server. The first OCR/VLM operation may download pretrained weights.
+
 ## See it work
 
 ```bash
-uv sync
+uv sync --locked
 uv run claimkit demo
 ```
 
@@ -50,8 +83,10 @@ A rendered sample is included at [`output/pdf/claim-summary-demo.pdf`](output/pd
 
 ## Local app
 
+The launch files above are the recommended route. For a manual start:
+
 ```bash
-uv sync --extra app --extra ocr
+uv sync --locked --extra app --extra ocr
 uv run streamlit run src/claimkit/app.py
 ```
 
@@ -62,11 +97,11 @@ you select its checkbox or pass `--florence`. Both run locally after that downlo
 ## CLI
 
 ```bash
-claimkit inspect ./evidence --lang ru
-claimkit build ./evidence --output ./claim-package --description "Door seal is leaking"
-claimkit build ./evidence --output ./claim-package --florence
-claimkit demo --output ./demo/generated
-claimkit evaluate --output ./demo/evaluation.json
+uv run claimkit inspect ./evidence --lang ru
+uv run claimkit build ./evidence --output ./claim-package --description "Door seal is leaking"
+uv run claimkit build ./evidence --output ./claim-package --florence
+uv run claimkit demo --output ./demo/generated
+uv run claimkit evaluate --output ./demo/evaluation.json
 ```
 
 ## Architecture
@@ -97,7 +132,7 @@ field values and 1/1 seeded conflicts on the synthetic fixture. These numbers ve
 the deterministic pipeline; they are not presented as real-document OCR accuracy.
 
 ```bash
-uv sync --extra dev --extra app
+uv sync --locked --extra dev --extra app
 uv run pytest -m "not integration"
 uv run ruff check .
 uv run mypy --package claimkit
